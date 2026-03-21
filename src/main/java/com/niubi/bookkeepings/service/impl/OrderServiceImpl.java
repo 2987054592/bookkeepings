@@ -1,0 +1,148 @@
+package com.niubi.bookkeepings.service.impl;
+
+import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.niubi.bookkeepings.domain.dto.orderDto;
+import com.niubi.bookkeepings.domain.dto.orderPageDto;
+import com.niubi.bookkeepings.domain.po.Bag;
+import com.niubi.bookkeepings.domain.po.Order;
+import com.niubi.bookkeepings.domain.po.OrderDetail;
+import com.niubi.bookkeepings.domain.vo.OrderDetailVo;
+import com.niubi.bookkeepings.domain.vo.orderPageVo;
+import com.niubi.bookkeepings.domain.vo.orderVo;
+import com.niubi.bookkeepings.mapper.OrderMapper;
+import com.niubi.bookkeepings.service.*;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * <p>
+ * 订单表 服务实现类
+ * </p>
+ *
+ * @author author
+ * @since 2026-03-21
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements IOrderService {
+    private final IOrderDetailService orderDetailService;
+    private final IEmployeeService employeeService;
+    private final IProcessService processService;
+    private final IBagService bagService;
+
+
+    @Override
+    @Transactional
+    public void addOrder(orderDto order) {
+        Order order1 = BeanUtil.copyProperties(order, Order.class);
+        save(order1);
+        Integer id = order1.getId();
+        List<OrderDetail> orderDetailList = order.getOrderDetailList();
+        for (OrderDetail detail : orderDetailList) {
+            detail.setOderId(id);
+        }
+        orderDetailService.saveBatch(orderDetailList);
+    }
+
+    @Override
+    public orderPageVo pageOrder(orderPageDto orderPage) {
+        LocalDate startTime = orderPage.getStartTime();
+        LocalDate endTime = orderPage.getEndTime();
+        orderPageVo vo=new orderPageVo();
+        Page<Order> page=new Page<>();
+        List<Bag> bagList=null;
+        List<Integer> bagIds=null;
+        if(orderPage.getBagName()!=null) {
+            bagList = bagService.lambdaQuery()
+                    .like(Bag::getName, orderPage.getBagName()).list();
+            bagIds = bagList.stream().map(Bag::getId).collect(Collectors.toList());
+        }
+
+        if(startTime!=null && endTime!=null){
+           page = lambdaQuery().like(orderPage.getName()!=null,Order::getName, orderPage.getName())
+                   .in(bagList!=null,Order::getBagId,bagIds)
+                   .ge(Order::getTime, startTime)
+                   .le(Order::getTime, endTime)
+                   .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
+       }
+       else{
+           page = lambdaQuery().like(orderPage.getName()!=null,Order::getName, orderPage.getName())
+                   .in(bagList!=null,Order::getBagId,bagIds)
+                   .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
+       }
+       vo.setOrderList(page.getRecords());
+       vo.setTotalPage(page.getPages());
+       vo.setTotalData(page.getTotal());
+        return vo;
+    }
+
+    @Override
+    public orderVo getOrderById(Integer orderId) {
+        orderVo vo=new orderVo();
+        Order order = getById(orderId);
+        List<OrderDetailVo> listvo=new ArrayList<>();
+        if(order==null){
+            throw new RuntimeException("订单不存在");
+        }
+        vo.setName(order.getName());
+        vo.setTime(order.getTime());
+        vo.setBagName(bagService.getBagById(order.getBagId()).getName());
+        vo.setOderId(order.getId());
+        List<OrderDetail> list = orderDetailService.lambdaQuery()
+                .eq(OrderDetail::getOderId, orderId).list();
+        for (OrderDetail detail : list) {
+            OrderDetailVo detailVo = new OrderDetailVo();
+            detailVo.setId(detail.getId());
+            detailVo.setOderId(detail.getOderId());
+            detailVo.setEmployeeName(employeeService.getById(detail.getEmployeeId()).getName());
+            detailVo.setProcessName(processService.getById(detail.getProcessId()).getName());
+            detailVo.setRealPrice(detail.getRealPrice());
+            detailVo.setRealQuantity(detail.getRealQuantity());
+            listvo.add(detailVo);
+        }
+        log.info("listvo:"+listvo);
+        vo.setOrderDetailVoList(listvo);
+        return vo;
+    }
+
+    @Override
+    public void deleteOrder(Integer orderId) {
+        removeById(orderId);
+        orderDetailService.lambdaUpdate()
+                .eq(OrderDetail::getOderId, orderId)
+                .remove();
+    }
+
+    @Override
+    @Transactional
+    public void updateOrder(orderDto order) {
+        Integer orderId = order.getOderId();
+        lambdaUpdate()
+                .eq(Order::getId, orderId)
+                .set(order.getName()!=null,Order::getName, order.getName())
+                .set(order.getTime()!=null,Order::getTime, order.getTime())
+                .set(order.getBagId()!=null,Order::getBagId, order.getBagId())
+                .update();
+        orderDetailService.lambdaUpdate()
+                .eq(OrderDetail::getOderId, orderId)
+                .remove();
+        List<OrderDetail> orderDetailList = order.getOrderDetailList();
+        for (OrderDetail detail : orderDetailList) {
+            detail.setOderId(orderId);
+        }
+        orderDetailService.saveBatch(orderDetailList);
+
+    }
+
+}
