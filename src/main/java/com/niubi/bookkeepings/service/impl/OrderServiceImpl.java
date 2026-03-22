@@ -3,12 +3,14 @@ package com.niubi.bookkeepings.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.niubi.bookkeepings.Excetion.DeleteExcetion;
 import com.niubi.bookkeepings.domain.dto.orderDto;
 import com.niubi.bookkeepings.domain.dto.orderPageDto;
 import com.niubi.bookkeepings.domain.po.Bag;
 import com.niubi.bookkeepings.domain.po.Order;
 import com.niubi.bookkeepings.domain.po.OrderDetail;
 import com.niubi.bookkeepings.domain.vo.OrderDetailVo;
+import com.niubi.bookkeepings.domain.vo.OrderVos;
 import com.niubi.bookkeepings.domain.vo.orderPageVo;
 import com.niubi.bookkeepings.domain.vo.orderVo;
 import com.niubi.bookkeepings.mapper.OrderMapper;
@@ -20,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,6 +63,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     public orderPageVo pageOrder(orderPageDto orderPage) {
         LocalDate startTime = orderPage.getStartTime();
         LocalDate endTime = orderPage.getEndTime();
+
         orderPageVo vo=new orderPageVo();
         Page<Order> page=new Page<>();
         List<Bag> bagList=null;
@@ -81,7 +86,15 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                    .in(bagList!=null,Order::getBagId,bagIds)
                    .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
        }
-       vo.setOrderList(page.getRecords());
+        List<Order> records = page.getRecords();
+       List<OrderVos> recordvos=new ArrayList<>();
+        for (Order record : records) {
+            OrderVos orderVos = BeanUtil.copyProperties(record, OrderVos.class);
+            orderVos.setTimes(YearMonth.of(record.getTime().getYear(), record.getTime().getMonth()));
+            orderVos.setBagName(bagService.getBagById(record.getBagId()).getName());
+            recordvos.add(orderVos);
+        }
+        vo.setOrderList(recordvos);
        vo.setTotalPage(page.getPages());
        vo.setTotalData(page.getTotal());
         return vo;
@@ -93,10 +106,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         Order order = getById(orderId);
         List<OrderDetailVo> listvo=new ArrayList<>();
         if(order==null){
-            throw new RuntimeException("订单不存在");
+            throw new DeleteExcetion("订单不存在");
         }
         vo.setName(order.getName());
-        vo.setTime(order.getTime());
+        LocalDate time = order.getTime();
+        int year = time.getYear();
+        Month month = time.getMonth();
+        YearMonth yearMonth = YearMonth.of(year, month);
+        vo.setTime(yearMonth);
         vo.setBagName(bagService.getBagById(order.getBagId()).getName());
         vo.setOderId(order.getId());
         List<OrderDetail> list = orderDetailService.lambdaQuery()
@@ -109,6 +126,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             detailVo.setProcessName(processService.getById(detail.getProcessId()).getName());
             detailVo.setRealPrice(detail.getRealPrice());
             detailVo.setRealQuantity(detail.getRealQuantity());
+            detailVo.setEmployeeId(detail.getEmployeeId());
+            detailVo.setProcessId(detail.getProcessId());
             listvo.add(detailVo);
         }
         log.info("listvo:"+listvo);
@@ -117,10 +136,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     }
 
     @Override
-    public void deleteOrder(Integer orderId) {
-        removeById(orderId);
+    public void deleteOrder(List<Integer> orderId) {
+        removeByIds(orderId);
         orderDetailService.lambdaUpdate()
-                .eq(OrderDetail::getOderId, orderId)
+                .in(OrderDetail::getOderId, orderId)
                 .remove();
     }
 

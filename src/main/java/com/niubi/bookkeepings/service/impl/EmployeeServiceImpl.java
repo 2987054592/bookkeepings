@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,8 +49,15 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         Integer pageNo = employeePage.getPageNo();
         Page<Employee> page = lambdaQuery()
                 .like(name != null, Employee::getName, name)
+                .orderByDesc(Employee::getId)
                 .page(new Page<>(pageNo, pageSize));
         List<Employee> records = page.getRecords();
+        if(records.isEmpty()){
+            employeePageVo.setTotalData(0);
+            employeePageVo.setTotalPage(0);
+            employeePageVo.setEmployeeVoList(new ArrayList<>());
+            return employeePageVo;
+        }
         List<employeeVo> emvo= new ArrayList<>();
         List<Integer> employeeIds = records.stream().map(Employee::getId).collect(Collectors.toList());
         //key是员工id，value是员工id对应的的薪水
@@ -85,10 +93,10 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
             //组装单个月的薪水vo
             List<employeeMonthSalary> salaryList=new ArrayList<>();
             //key是时间，value是薪水
-            Map<LocalDate,BigDecimal> monthlySalaryMap=new HashMap<>();
+            Map<YearMonth,BigDecimal> monthlySalaryMap=new HashMap<>();
             for(Order order:orders){
                 //初始化
-                LocalDate month = order.getTime();
+                YearMonth month=YearMonth.of(order.getTime().getYear(), order.getTime().getMonth());
                 BigDecimal dailySalary=BigDecimal.ZERO;
                 //查询员工对应的订单详情
                 List<OrderDetail> details = orderDetailList.stream()
@@ -107,7 +115,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
 
                 //组装结果
             }
-            for(Map.Entry<LocalDate,BigDecimal> entry:monthlySalaryMap.entrySet()){
+            for(Map.Entry<YearMonth,BigDecimal> entry:monthlySalaryMap.entrySet()){
                 salaryList.add(new employeeMonthSalary(entry.getKey(),entry.getValue()));
             }
             //插入结果
@@ -136,7 +144,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
             //组装employeeMonthSalaryVo
             employeeMonthSalaryVo employeeMonthSalarVo = new employeeMonthSalaryVo();
             //设置一些属性
-            employeeMonthSalarVo.setTime(order.getTime());
+            employeeMonthSalarVo.setTime(YearMonth.of(order.getTime().getYear(), order.getTime().getMonth()));
             employeeMonthSalarVo.setOrderName(order.getName());
             employeeMonthSalarVo.setSalary(SalaryByOrderId(order.getId()));
             employeeMonthSalarVo.setBagName(bagService.getBagById(order.getBagId()).getName());
@@ -173,13 +181,13 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     }
 
     @Override
-    public void deleteEmployee(Integer employeeId) {
+    public void deleteEmployee(List<Integer> employeeId) {
         List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .eq(OrderDetail::getEmployeeId, employeeId).list();
+                .in(OrderDetail::getEmployeeId, employeeId).list();
         if(!orderDetailList.isEmpty()){
             throw new DeleteExcetion("有订单绑定了该员工，请先删除订单再删除该员工");
         }
-        removeById(employeeId);
+        removeByIds(employeeId);
     }
 
     @Override

@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.niubi.bookkeepings.domain.vo.orderPageVo;
 import com.niubi.bookkeepings.domain.vo.orderVo;
 
+import java.util.List;
+
 /**
  * <p>
  * 订单表 服务类
@@ -23,7 +25,7 @@ public interface IOrderService extends IService<Order> {
 
     orderVo getOrderById(Integer orderId);
 
-    void deleteOrder(Integer orderId);
+    void deleteOrder(List<Integer> orderId);
 
     void updateOrder(orderDto order);
 }

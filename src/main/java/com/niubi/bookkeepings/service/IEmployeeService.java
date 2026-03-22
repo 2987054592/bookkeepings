@@ -30,7 +30,7 @@ public interface IEmployeeService extends IService<Employee> {
 
     List<employeeMonthSalaryVo> employeegetById(Integer employeeId);
 
-    void deleteEmployee(Integer employeeId);
+    void deleteEmployee(List<Integer> employeeId);
 
     void updateEmployee(Employee employee);
 }

@@ -44,13 +44,13 @@ public class ProcessServiceImpl extends ServiceImpl<ProcessMapper, Process> impl
     }
 
     @Override
-    public void deleteProcess(Integer processId) {
+    public void deleteProcess(List<Integer> processId) {
         List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .eq(OrderDetail::getProcessId, processId).list();
+                .in(OrderDetail::getProcessId, processId).list();
         if(!orderDetailList.isEmpty()){
-            throw new DeleteExcetion("有订单绑定了该工序，请先删除订单再删除该工序");
+            throw new DeleteExcetion("有订单或书包绑定了该工序，请先删除订单或书包再删除该工序");
         }
-        removeById(processId);
+        removeByIds(processId);
     }
 
     @Override

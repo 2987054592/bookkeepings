@@ -69,8 +69,12 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
                         bagPage.getPageNo(),
                         bagPage.getPageSize()
                 ));
-        if (page == null) {
-            return null;
+        if (page.getRecords() == null || page.getRecords().isEmpty()) {
+            bagPageVo bagPageVo = new bagPageVo();
+            bagPageVo.setTotalPage(0);
+            bagPageVo.setTotalData(0);
+            bagPageVo.setBagList(Collections.emptyList());
+            return bagPageVo;
         }
 
         List<Bag> records = page.getRecords();
@@ -136,14 +140,15 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
     }
 
     @Override
-    public void deleteBag(Integer bagId) {
-        List<Order> order = orderMapper.selectByBagId(bagId);
+    public void deleteBag(List<Integer> bagId) {
+        List<Order> order = orderMapper.selectByIds(bagId);
         if (order != null && !order.isEmpty()) {
             throw new DeleteExcetion("请先删除该书包下的订单");
         }
-        removeById(bagId);
+        removeByIds(bagId);
     }
 
+    @Transactional
     @Override
     public void updateBag(bagDto bagDto) {
         Bag bag = BeanUtil.copyProperties(bagDto, Bag.class);

@@ -12,6 +12,6 @@ import java.time.YearMonth;
 @NoArgsConstructor
 @Data
 public class employeeMonthSalary {
-    private LocalDate time;
+    private YearMonth time;
     private BigDecimal salary;
 }

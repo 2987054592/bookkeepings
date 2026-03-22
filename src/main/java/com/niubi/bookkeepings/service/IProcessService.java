@@ -5,6 +5,8 @@ import com.niubi.bookkeepings.domain.po.Process;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.niubi.bookkeepings.domain.vo.processPageVo;
 
+import java.util.List;
+
 /**
  * <p>
  * 工序表 服务类
@@ -17,7 +19,7 @@ public interface IProcessService extends IService<Process> {
 
     processPageVo pageprocess(processPageDto processPage);
 
-    void deleteProcess(Integer processId);
+    void deleteProcess(List<Integer> processId);
 
     void updateProcess(Process process);
 }

@@ -13,6 +13,7 @@ public class OrderDetailVo {
     private Integer id;
     private Integer oderId;
     private String processName;
+    private Integer processId;
     /**
      * 实际价格
      */
@@ -23,4 +24,5 @@ public class OrderDetailVo {
      */
     private Integer realQuantity;
     private String employeeName;
+    private Integer employeeId;
 }

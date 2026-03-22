@@ -7,13 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
 public class employeeMonthSalaryVo {
-    private LocalDate time;
+    private YearMonth time;
     private String orderName;
     private String bagName;
     private BigDecimal salary;

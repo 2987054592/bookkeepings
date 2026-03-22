@@ -14,5 +14,5 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 public class orderPageVo extends PageVo {
-    private List<Order> orderList;
+    private List<OrderVos> orderList;
 }

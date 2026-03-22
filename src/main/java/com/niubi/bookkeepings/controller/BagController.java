@@ -52,7 +52,7 @@ public class BagController {
     }
     @DeleteMapping
     @ApiOperation("删除书包")
-    public Result deleteBag(@RequestParam Integer bagId){
+    public Result deleteBag(@RequestParam List<Integer> bagId){
         bagService.deleteBag(bagId);
         return Result.success();
     }

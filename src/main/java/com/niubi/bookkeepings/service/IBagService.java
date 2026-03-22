@@ -26,7 +26,7 @@ public interface IBagService extends IService<Bag> {
     bagVo getBagById(Integer bagId);
 
 
-    void deleteBag(Integer bagId);
+    void deleteBag(List<Integer> bagId);
 
     void updateBag(bagDto bagDto);
 }

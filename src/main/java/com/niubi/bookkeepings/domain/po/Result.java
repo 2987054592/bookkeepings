@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class Result<T> {
     private Integer code;
-    private String message;
+    private String msg;
     private T data;
     public static <T> Result<T> success(T data){
         return new Result<>(1,"ok",data);

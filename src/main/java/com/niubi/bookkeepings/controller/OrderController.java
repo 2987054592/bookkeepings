@@ -13,6 +13,8 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * <p>
  * 订单表 前端控制器
@@ -45,7 +47,7 @@ public class OrderController {
     }
     @DeleteMapping
     @ApiOperation("删除订单")
-    public Result deleteOrder(@RequestParam Integer orderId){
+    public Result deleteOrder(@RequestParam List<Integer> orderId){
         orderService.deleteOrder(orderId);
         return Result.success();
     }

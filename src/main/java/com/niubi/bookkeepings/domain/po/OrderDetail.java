@@ -31,7 +31,7 @@ public class OrderDetail implements Serializable {
     /**
      * 工序id
      */
-    private String processId;
+    private Integer processId;
 
     /**
      * 主订单id
