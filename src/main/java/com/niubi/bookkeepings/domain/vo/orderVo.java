@@ -14,6 +14,7 @@ import java.util.List;
 public class orderVo {
     private Integer oderId;
     private String bagName;
+    private String imageUrl;
     private String name;
     private YearMonth time;
     private List<OrderDetailVo> orderDetailVoList;

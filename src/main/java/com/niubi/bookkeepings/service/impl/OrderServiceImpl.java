@@ -26,6 +26,7 @@ import java.time.Month;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -68,7 +69,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         Page<Order> page=new Page<>();
         List<Bag> bagList=null;
         List<Integer> bagIds=null;
-        if(orderPage.getBagName()!=null) {
+        if(orderPage.getBagName()!=null && !Objects.equals(orderPage.getBagName(), "undefined")) {
             bagList = bagService.lambdaQuery()
                     .like(Bag::getName, orderPage.getBagName()).list();
             bagIds = bagList.stream().map(Bag::getId).collect(Collectors.toList());
@@ -82,7 +83,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                    .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
        }
        else{
-           page = lambdaQuery().like(orderPage.getName()!=null,Order::getName, orderPage.getName())
+           page = lambdaQuery().like(orderPage.getName()!=null && !Objects.equals(orderPage.getName(), "undefined"),Order::getName, orderPage.getName())
                    .in(bagList!=null,Order::getBagId,bagIds)
                    .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
        }
@@ -92,6 +93,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             OrderVos orderVos = BeanUtil.copyProperties(record, OrderVos.class);
             orderVos.setTimes(YearMonth.of(record.getTime().getYear(), record.getTime().getMonth()));
             orderVos.setBagName(bagService.getBagById(record.getBagId()).getName());
+            orderVos.setImageUrl(bagService.getBagById(record.getBagId()).getImageUrl());
             recordvos.add(orderVos);
         }
         vo.setOrderList(recordvos);
@@ -116,6 +118,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         vo.setTime(yearMonth);
         vo.setBagName(bagService.getBagById(order.getBagId()).getName());
         vo.setOderId(order.getId());
+        vo.setImageUrl(bagService.getBagById(order.getBagId()).getImageUrl());
         List<OrderDetail> list = orderDetailService.lambdaQuery()
                 .eq(OrderDetail::getOderId, orderId).list();
         for (OrderDetail detail : list) {
@@ -136,10 +139,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     }
 
     @Override
-    public void deleteOrder(List<Integer> orderId) {
-        removeByIds(orderId);
+    @Transactional
+    public void deleteOrder(Integer orderId) {
+        removeById(orderId);
         orderDetailService.lambdaUpdate()
-                .in(OrderDetail::getOderId, orderId)
+                .eq(OrderDetail::getOderId, orderId)
                 .remove();
     }
 
@@ -158,6 +162,12 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 .remove();
         List<OrderDetail> orderDetailList = order.getOrderDetailList();
         for (OrderDetail detail : orderDetailList) {
+            if(detail.getEmployeeId()==null){
+                throw new DeleteExcetion("员工不存在");
+            }
+            if(detail.getProcessId()==null){
+                throw new DeleteExcetion("工序不存在");
+            }
             detail.setOderId(orderId);
         }
         orderDetailService.saveBatch(orderDetailList);

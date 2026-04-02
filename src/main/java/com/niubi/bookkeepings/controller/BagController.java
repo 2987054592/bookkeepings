@@ -1,6 +1,7 @@
 package com.niubi.bookkeepings.controller;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.niubi.bookkeepings.domain.dto.bagDto;
 import com.niubi.bookkeepings.domain.dto.bagPageDto;
 import com.niubi.bookkeepings.domain.po.Bag;
@@ -12,7 +13,9 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -29,10 +32,12 @@ import java.util.List;
 @Api(tags = "书包相关接口")
 public class BagController {
     private final IBagService bagService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     @ApiOperation("添加书包")
     @PostMapping
-    public Result addBag(@RequestBody bagDto bagDto){
-        bagService.saveBage(bagDto);
+    public Result addBag(@RequestParam("bagDto") String bagDtoJson,@RequestParam(required = false) MultipartFile img) throws Exception {
+        bagDto bagDto = objectMapper.readValue(bagDtoJson, bagDto.class);
+        bagService.saveBage(bagDto,img);
         return Result.success();
     }
     @GetMapping("/page")
@@ -52,14 +57,15 @@ public class BagController {
     }
     @DeleteMapping
     @ApiOperation("删除书包")
-    public Result deleteBag(@RequestParam List<Integer> bagId){
+    public Result deleteBag(@RequestParam Integer bagId) throws Exception {
         bagService.deleteBag(bagId);
         return Result.success();
     }
     @PostMapping("/update")
     @ApiOperation("更新书包")
-    public Result updateBag(@RequestBody bagDto bagDto){
-        bagService.updateBag(bagDto);
+    public Result updateBag(@RequestParam("bagDto") String bagDtoJson,@RequestParam(required = false) MultipartFile img) throws Exception {
+        bagDto bagDto = objectMapper.readValue(bagDtoJson, bagDto.class);
+        bagService.updateBag(bagDto,img);
         return Result.success();
     }
 

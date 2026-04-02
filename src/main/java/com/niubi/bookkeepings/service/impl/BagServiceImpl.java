@@ -15,16 +15,19 @@ import com.niubi.bookkeepings.mapper.OrderDetailMapper;
 import com.niubi.bookkeepings.mapper.OrderMapper;
 import com.niubi.bookkeepings.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.niubi.bookkeepings.utils.AliyunUpload;
+import com.niubi.bookkeepings.utils.Aliyunossdelte;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.niubi.bookkeepings.utils.Aliyunossdelte.deleteimg;
 
 /**
  * <p>
@@ -41,11 +44,20 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
     private final IProcessBagService processBagService;
     private final IProcessService processService;
     private final OrderMapper orderMapper;
+    private final AliyunUpload upload;
+
+
 
     @Override
     @Transactional
-    public void saveBage(bagDto bagDto) {
+    public void saveBage(bagDto bagDto,MultipartFile img) throws Exception {
+        log.info("添加书包:{}",img);
         Bag bag = BeanUtil.copyProperties(bagDto, Bag.class);
+        if (img != null) {
+            log.info("上传图片");
+            bag.setImageUrl(upload.Upload(img.getBytes(), Objects.requireNonNull(img.getOriginalFilename())));
+        }
+
         save(bag);
         List<processDto> processList1 = bagDto.getProcessList();
         List<ProcessBag> processBagList = new ArrayList<>();
@@ -64,7 +76,7 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
     public bagPageVo pageBag(bagPageDto bagPage) {
         log.info("分页查询书包信息");
         String name = bagPage.getName();
-        Page<Bag> page = lambdaQuery().like(name != null, Bag::getName, name)
+        Page<Bag> page = lambdaQuery().like(name != null && !name.equals("undefined"), Bag::getName, name)
                 .page(new Page<>(
                         bagPage.getPageNo(),
                         bagPage.getPageSize()
@@ -93,6 +105,7 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
             bagVo bagVo = new bagVo();
             bagVo.setId(r.getId());
             bagVo.setName(r.getName());
+            bagVo.setImageUrl(r.getImageUrl());
             //获取这个书包的所有工序书包关联表
             List<ProcessBag> processBags1 = processMap.get(r.getId());
             //key为工序id，value为工序和书包的关联（用于获取默认价格）
@@ -126,6 +139,7 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
         Bag bag = getById(bagId);
         vo.setId(bag.getId());
         vo.setName(bag.getName());
+        vo.setImageUrl(bag.getImageUrl());
         List<processDto> processList = new ArrayList<>();
         List<ProcessBag> list = processBagService.lambdaQuery()
                 .eq(ProcessBag::getBagId, bagId).list();
@@ -140,18 +154,33 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
     }
 
     @Override
-    public void deleteBag(List<Integer> bagId) {
-        List<Order> order = orderMapper.selectByIds(bagId);
+    @Transactional
+    public void deleteBag(Integer bagId) throws Exception {
+        List<Order> order = orderMapper.selectByBagIds(bagId);
+        log.info("order:{}", order);
         if (order != null && !order.isEmpty()) {
             throw new DeleteExcetion("请先删除该书包下的订单");
         }
-        removeByIds(bagId);
+        Bag bag = baseMapper.selectById(bagId);
+        if(bag.getImageUrl()!=null) {
+            deleteimg(Collections.singletonList(bag.getImageUrl()));
+        }
+        processBagService.lambdaUpdate()
+                        .eq(ProcessBag::getBagId, bagId)
+                                .remove();
+        removeById(bagId);
     }
 
     @Transactional
     @Override
-    public void updateBag(bagDto bagDto) {
+    public void updateBag(bagDto bagDto,MultipartFile img) throws Exception {
         Bag bag = BeanUtil.copyProperties(bagDto, Bag.class);
+        Bag one = lambdaQuery().eq(Bag::getId, bag.getId()).one();
+        log.info("img:{}", img);
+        if(img!=null && img.getSize()>100){
+            deleteimg(Collections.singletonList(one.getImageUrl()));
+            bag.setImageUrl(upload.Upload(img.getBytes(), Objects.requireNonNull(img.getOriginalFilename())));
+        }
         updateById(bag);
         processBagService.lambdaUpdate()
                 .eq(ProcessBag::getBagId, bag.getId())

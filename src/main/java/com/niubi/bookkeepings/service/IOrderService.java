@@ -25,7 +25,7 @@ public interface IOrderService extends IService<Order> {
 
     orderVo getOrderById(Integer orderId);
 
-    void deleteOrder(List<Integer> orderId);
+    void deleteOrder(Integer orderId);
 
     void updateOrder(orderDto order);
 }

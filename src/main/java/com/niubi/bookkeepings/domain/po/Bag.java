@@ -34,6 +34,7 @@ public class Bag implements Serializable {
      * 书包名称
      */
     private String name;
+    private String imageUrl;
 
 
 }

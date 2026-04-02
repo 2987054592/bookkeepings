@@ -50,7 +50,7 @@ public class ProcessController {
     }
     @DeleteMapping
     @ApiOperation("删除工序")
-    public Result deleteProcess(@RequestParam List<Integer> processId){
+    public Result deleteProcess(@RequestParam Integer processId){
         processService.deleteProcess(processId);
         return Result.success();
     }

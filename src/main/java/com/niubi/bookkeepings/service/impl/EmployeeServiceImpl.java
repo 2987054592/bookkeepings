@@ -18,6 +18,7 @@ import com.niubi.bookkeepings.service.IOrderDetailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -148,6 +149,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
             employeeMonthSalarVo.setOrderName(order.getName());
             employeeMonthSalarVo.setSalary(SalaryByOrderId(order.getId()));
             employeeMonthSalarVo.setBagName(bagService.getBagById(order.getBagId()).getName());
+            employeeMonthSalarVo.setBagImg(bagService.getBagById(order.getBagId()).getImageUrl());
             //组装employeeMonthSalaryVo内的OrderDetailInfoVo集合
             List<OrderDetailInfoVo> orderDetailInfoVos=new ArrayList<>();
             for(OrderDetail detail:orderDetailList){
@@ -181,6 +183,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     }
 
     @Override
+    @Transactional
     public void deleteEmployee(List<Integer> employeeId) {
         List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
                 .in(OrderDetail::getEmployeeId, employeeId).list();
@@ -191,6 +194,7 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     }
 
     @Override
+    @Transactional
     public void updateEmployee(Employee employee) {
         updateById( employee);
     }

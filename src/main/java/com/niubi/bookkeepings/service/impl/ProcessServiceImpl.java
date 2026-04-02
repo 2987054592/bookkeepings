@@ -5,13 +5,17 @@ import com.niubi.bookkeepings.Excetion.DeleteExcetion;
 import com.niubi.bookkeepings.domain.dto.processPageDto;
 import com.niubi.bookkeepings.domain.po.OrderDetail;
 import com.niubi.bookkeepings.domain.po.Process;
+import com.niubi.bookkeepings.domain.po.ProcessBag;
 import com.niubi.bookkeepings.domain.vo.processPageVo;
 import com.niubi.bookkeepings.mapper.ProcessMapper;
 import com.niubi.bookkeepings.service.IOrderDetailService;
+import com.niubi.bookkeepings.service.IProcessBagService;
 import com.niubi.bookkeepings.service.IProcessService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -25,8 +29,10 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProcessServiceImpl extends ServiceImpl<ProcessMapper, Process> implements IProcessService {
     private final IOrderDetailService orderDetailService;
+    private final IProcessBagService processBagService;
     @Override
     public processPageVo pageprocess(processPageDto processPage) {
         processPageVo vo=new processPageVo();
@@ -44,13 +50,20 @@ public class ProcessServiceImpl extends ServiceImpl<ProcessMapper, Process> impl
     }
 
     @Override
-    public void deleteProcess(List<Integer> processId) {
+    @Transactional
+    public void deleteProcess(Integer processId) {
         List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .in(OrderDetail::getProcessId, processId).list();
+                .eq(OrderDetail::getProcessId, processId).list();
+        List<ProcessBag> list = processBagService.lambdaQuery()
+                .eq(ProcessBag::getProcessId, processId).list();
+        log.info("orderDetailList:{}",orderDetailList);
         if(!orderDetailList.isEmpty()){
-            throw new DeleteExcetion("有订单或书包绑定了该工序，请先删除订单或书包再删除该工序");
+            throw new DeleteExcetion("有订单绑定了该工序，请先删除订单再删除该工序");
         }
-        removeByIds(processId);
+        if (!list.isEmpty()) {
+            throw new DeleteExcetion("有书包绑定了该工序，请先删除书包再删除该工序");
+        }
+        removeById(processId);
     }
 
     @Override

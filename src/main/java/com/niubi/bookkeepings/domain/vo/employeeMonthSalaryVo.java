@@ -17,6 +17,7 @@ public class employeeMonthSalaryVo {
     private YearMonth time;
     private String orderName;
     private String bagName;
+    private String bagImg;
     private BigDecimal salary;
     List<OrderDetailInfoVo> orderDetailList;
 }

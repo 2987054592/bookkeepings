@@ -1,7 +1,14 @@
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-request-size: 100MB
+      file-size-threshold: 0
+      max-file-size: 1MB
   jackson:
     date-format: yyyy-MM-dd
     time-zone: GMT+8
+
   application:
     name: bookkeepings
   datasource:
@@ -22,5 +29,11 @@ mybatis-plus:
     db-config:
       update-strategy: not_null
       id-type: assign_id
+aliyun :
+  oss:
+    endpoint: https://oss-cn-beijing.aliyuncs.com
+    bucketName: javazou
+    region : cn-beijing
+
 
 

@@ -18,6 +18,6 @@ import java.util.List;
 @Mapper
 public interface OrderMapper extends BaseMapper<Order> {
 
-    @Select("select * from order where bag_id = #{bagId}")
-    List<Order> selectByBagId(Integer bagId);
+    @Select("select * from orders where bag_id = #{bagId}")
+    List<Order> selectByBagIds(Integer bagId);
 }

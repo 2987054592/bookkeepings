@@ -47,7 +47,7 @@ public class OrderController {
     }
     @DeleteMapping
     @ApiOperation("删除订单")
-    public Result deleteOrder(@RequestParam List<Integer> orderId){
+    public Result deleteOrder(@RequestParam("orderId") Integer orderId){
         orderService.deleteOrder(orderId);
         return Result.success();
     }

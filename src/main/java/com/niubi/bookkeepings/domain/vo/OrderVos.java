@@ -32,4 +32,5 @@ public class OrderVos {
      */
     private Integer bagId;
     private String bagName;
+    private String imageUrl;
 }

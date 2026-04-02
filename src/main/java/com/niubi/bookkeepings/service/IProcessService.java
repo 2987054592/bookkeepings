@@ -19,7 +19,7 @@ public interface IProcessService extends IService<Process> {
 
     processPageVo pageprocess(processPageDto processPage);
 
-    void deleteProcess(List<Integer> processId);
+    void deleteProcess(Integer processId);
 
     void updateProcess(Process process);
 }

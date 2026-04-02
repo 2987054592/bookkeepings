@@ -14,6 +14,7 @@ import java.util.List;
 public class bagVo {
     private Integer id;
     private String  name;
+    private String imageUrl;
     private List<processDto> processList;
 
 }
