@@ -3,12 +3,16 @@ package com.niubi.bookkeepings.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.niubi.bookkeepings.Excetion.DeleteExcetion;
+import com.niubi.bookkeepings.domain.dto.SalaryAggregateDto;
 import com.niubi.bookkeepings.domain.dto.employeePageDto;
+import com.niubi.bookkeepings.domain.po.Bag;
 import com.niubi.bookkeepings.domain.po.Employee;
 import com.niubi.bookkeepings.domain.po.Order;
 import com.niubi.bookkeepings.domain.po.OrderDetail;
+import com.niubi.bookkeepings.domain.po.Process;
 import com.niubi.bookkeepings.domain.vo.*;
 import com.niubi.bookkeepings.mapper.EmployeeMapper;
+import com.niubi.bookkeepings.mapper.OrderDetailMapper;
 import com.niubi.bookkeepings.mapper.OrderMapper;
 import com.niubi.bookkeepings.mapper.ProcessMapper;
 import com.niubi.bookkeepings.service.IBagService;
@@ -39,6 +43,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements IEmployeeService {
     private final OrderMapper orderMapper;
+    private final OrderDetailMapper orderDetailMapper;
     private final IOrderDetailService orderDetailService;
     private final IBagService bagService;
     private final ProcessMapper processMapper;
@@ -46,10 +51,13 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
     public employeePageVo pageemployee(employeePageDto employeePage) {
         employeePageVo employeePageVo = new employeePageVo();
         String name = employeePage.getName();
+        Integer floor = employeePage.getFloor();
         Integer pageSize = employeePage.getPageSize();
         Integer pageNo = employeePage.getPageNo();
         Page<Employee> page = lambdaQuery()
-                .like(name != null, Employee::getName, name)
+                .like(name != null && !name.isEmpty(), Employee::getName, name)
+                .eq(floor != null, Employee::getFloor, floor)
+                .orderByDesc(Employee::getCreateTime)
                 .orderByDesc(Employee::getId)
                 .page(new Page<>(pageNo, pageSize));
         List<Employee> records = page.getRecords();
@@ -74,112 +82,105 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return employeePageVo;
     }
 
-    ///根据员工id，根据时间进行分类获得对应的薪水
+    ///根据员工id，根据时间进行分类获得对应的薪水（聚合 SQL 一次查出，不再拉全量明细）
     public Map<Integer,List<employeeMonthSalary>> getSalaryById(List<Integer> employeeId) {
         Map<Integer,List<employeeMonthSalary>> vo = new HashMap<>();
         for(Integer id:employeeId){
             vo.put(id, new ArrayList<>());
         }
-        //获取这个员工的所有订单详情
-        List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .in(OrderDetail::getEmployeeId, employeeId).list();
-        if (orderDetailList.isEmpty()) {
+        if (employeeId == null || employeeId.isEmpty()) {
             return vo;
         }
-        //获取这个员工所有订单的id
-        List<Integer> orderId = orderDetailList.stream().map(OrderDetail::getOderId).collect(Collectors.toList());
-        //获取这个员工所有订单
-        List<Order> orders = orderMapper.selectByIds(orderId);
-        for(Integer id:employeeId){
-            //组装单个月的薪水vo
-            List<employeeMonthSalary> salaryList=new ArrayList<>();
-            //key是时间，value是薪水
-            Map<YearMonth,BigDecimal> monthlySalaryMap=new HashMap<>();
-            for(Order order:orders){
-                //初始化
-                YearMonth month=YearMonth.of(order.getTime().getYear(), order.getTime().getMonth());
-                BigDecimal dailySalary=BigDecimal.ZERO;
-                //查询员工对应的订单详情
-                List<OrderDetail> details = orderDetailList.stream()
-                        .filter(detail -> detail.getEmployeeId().equals(id))
-                        .filter(detail -> detail.getOderId().equals(order.getId()))
-                        .collect(Collectors.toList());
-                //计算这个time的薪水
-                dailySalary=details.stream()
-                        .map(detail -> detail.getRealPrice().multiply(BigDecimal.valueOf(detail.getRealQuantity())))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                //如果有薪水，就加入
-                if(dailySalary.compareTo(BigDecimal.ZERO)>0){
-                    monthlySalaryMap.merge(month,dailySalary, BigDecimal::add);
-                }
-
-                //组装结果
+        //按 员工+月份 聚合，一次查询得到所有员工的月薪
+        List<SalaryAggregateDto> aggs = orderDetailMapper.selectSalaryGroupByMonth(employeeId);
+        for (SalaryAggregateDto agg : aggs) {
+            YearMonth month = YearMonth.parse(agg.getMonth());
+            employeeMonthSalary salary = new employeeMonthSalary(month, agg.getSalary());
+            List<employeeMonthSalary> list = vo.get(agg.getEmployeeId());
+            if (list != null) {
+                list.add(salary);
             }
-            for(Map.Entry<YearMonth,BigDecimal> entry:monthlySalaryMap.entrySet()){
-                salaryList.add(new employeeMonthSalary(entry.getKey(),entry.getValue()));
-            }
-            //插入结果
-            vo.put(id,salaryList);
         }
         return vo;
     }
 
-    //查询这个员工薪水的详情
+    //查询这个员工薪水的详情（子查询分页 + 主表回查）
     @Override
-    public List<employeeMonthSalaryVo> employeegetById(Integer employeeId) {
+    public employeeMonthSalaryPageVo employeegetById(Integer employeeId, Integer pageNo, Integer pageSize) {
         //先确定结果vo
+        employeeMonthSalaryPageVo pageVo = new employeeMonthSalaryPageVo();
         List<employeeMonthSalaryVo> employeeMonthSalaryVo = new ArrayList<>();
-        //查询订单详情
-        List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .eq(OrderDetail::getEmployeeId, employeeId).list();
-        //为空就返回空结果
-        if (orderDetailList.isEmpty()) {
-            return employeeMonthSalaryVo;
+        pageVo.setOrderList(employeeMonthSalaryVo);
+        //总数与工资总额（全量，一次聚合查询）
+        Long total = orderDetailMapper.countDistinctOrdersByEmployee(employeeId);
+        pageVo.setTotalData(total == null ? 0 : total);
+        pageVo.setTotalPage((total + pageSize - 1) / pageSize);
+        pageVo.setTotalSalary(orderDetailMapper.sumSalaryByEmployee(employeeId));
+        if (total == null || total == 0) {
+            return pageVo;
         }
-        //获取这个员工所有订单的id
-        List<Integer> orderId = orderDetailList.stream().map(OrderDetail::getOderId).collect(Collectors.toList());
-        //获取这个员工所有订单
-        List<Order> orders = orderMapper.selectByIds(orderId);
-        for(Order order:orders){
+        //第一步：子查询分页，只取当前页所需的订单id（按订单创建时间倒序）
+        int offset = (pageNo - 1) * pageSize;
+        List<Integer> orderIds = orderDetailMapper.selectOrderIdsByEmployeePaged(employeeId, offset, pageSize);
+        if (orderIds.isEmpty()) {
+            return pageVo;
+        }
+        //第二步：用这批订单id回查订单主表，并保持分页顺序
+        List<Order> orders = orderMapper.selectByIds(orderIds);
+        Map<Integer, Order> orderMap = orders.stream()
+                .collect(Collectors.toMap(Order::getId, o -> o));
+        //第三步：只查当前页订单下、该员工自己的明细（范围已缩小到一页）
+        List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
+                .eq(OrderDetail::getEmployeeId, employeeId)
+                .in(OrderDetail::getOderId, orderIds)
+                .list();
+        Map<Integer, List<OrderDetail>> detailsByOrder = orderDetailList.stream()
+                .collect(Collectors.groupingBy(OrderDetail::getOderId));
+        //批量取书包与工序，避免 N+1 查询
+        List<Integer> bagIds = orders.stream().map(Order::getBagId).distinct().collect(Collectors.toList());
+        Map<Integer, Bag> bagMap = bagService.listByIds(bagIds).stream()
+                .collect(Collectors.toMap(Bag::getId, b -> b));
+        List<Integer> processIds = orderDetailList.stream()
+                .map(OrderDetail::getProcessId).distinct().collect(Collectors.toList());
+        Map<Integer, Process> processMap = processIds.isEmpty() ? Collections.emptyMap()
+                : processMapper.selectBatchIds(processIds).stream()
+                        .collect(Collectors.toMap(Process::getId, p -> p));
+        String employeeName = getById(employeeId).getName();
+        //按分页顺序组装
+        for (Integer orderId : orderIds) {
+            Order order = orderMap.get(orderId);
+            if (order == null) {
+                continue;
+            }
             //组装employeeMonthSalaryVo
             employeeMonthSalaryVo employeeMonthSalarVo = new employeeMonthSalaryVo();
-            //设置一些属性
+            employeeMonthSalarVo.setOrderId(order.getId());
             employeeMonthSalarVo.setTime(YearMonth.of(order.getTime().getYear(), order.getTime().getMonth()));
             employeeMonthSalarVo.setOrderName(order.getName());
-            employeeMonthSalarVo.setSalary(SalaryByOrderId(order.getId()));
-            employeeMonthSalarVo.setBagName(bagService.getBagById(order.getBagId()).getName());
-            employeeMonthSalarVo.setBagImg(bagService.getBagById(order.getBagId()).getImageUrl());
-            //组装employeeMonthSalaryVo内的OrderDetailInfoVo集合
-            List<OrderDetailInfoVo> orderDetailInfoVos=new ArrayList<>();
-            for(OrderDetail detail:orderDetailList){
-                if(detail.getOderId().equals(order.getId())){
-                    //组装单个vo再添加到list集合当中
-                    OrderDetailInfoVo orderDetailInfoVo = new OrderDetailInfoVo();
-                    orderDetailInfoVo.setProcessName(processMapper.selectById(detail.getProcessId()).getName());
-                    orderDetailInfoVo.setEmployeeName(getById(detail.getEmployeeId()).getName());
-                    orderDetailInfoVo.setRealQuantity(detail.getRealQuantity());
-                    orderDetailInfoVo.setRealPrice(detail.getRealPrice());
-                    orderDetailInfoVos.add(orderDetailInfoVo);
-                }
+            Bag bag = bagMap.get(order.getBagId());
+            if (bag != null) {
+                employeeMonthSalarVo.setBagName(bag.getName());
+                employeeMonthSalarVo.setBagImg(bag.getImageUrl());
             }
+            //该员工在此订单下的明细与薪水
+            List<OrderDetail> details = detailsByOrder.getOrDefault(order.getId(), Collections.emptyList());
+            BigDecimal salary = BigDecimal.ZERO;
+            List<OrderDetailInfoVo> orderDetailInfoVos = new ArrayList<>();
+            for (OrderDetail detail : details) {
+                salary = salary.add(detail.getRealPrice().multiply(BigDecimal.valueOf(detail.getRealQuantity())));
+                OrderDetailInfoVo orderDetailInfoVo = new OrderDetailInfoVo();
+                Process process = processMap.get(detail.getProcessId());
+                orderDetailInfoVo.setProcessName(process != null ? process.getName() : "");
+                orderDetailInfoVo.setEmployeeName(employeeName);
+                orderDetailInfoVo.setRealQuantity(detail.getRealQuantity());
+                orderDetailInfoVo.setRealPrice(detail.getRealPrice());
+                orderDetailInfoVos.add(orderDetailInfoVo);
+            }
+            employeeMonthSalarVo.setSalary(salary);
             employeeMonthSalarVo.setOrderDetailList(orderDetailInfoVos);
             employeeMonthSalaryVo.add(employeeMonthSalarVo);
         }
-
-
-        return employeeMonthSalaryVo;
-    }
-
-    //根据订单id，获得这个订单的薪水
-    private BigDecimal SalaryByOrderId(Integer orderId) {
-        List<OrderDetail> orderDetailList = orderDetailService.lambdaQuery()
-                .eq(OrderDetail::getOderId, orderId).list();
-        BigDecimal res=BigDecimal.ZERO;
-        for (OrderDetail r : orderDetailList) {
-            res=res.add(r.getRealPrice().multiply(BigDecimal.valueOf(r.getRealQuantity())));
-        }
-        return res;
+        return pageVo;
     }
 
     @Override

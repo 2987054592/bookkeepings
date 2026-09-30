@@ -76,7 +76,11 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
     public bagPageVo pageBag(bagPageDto bagPage) {
         log.info("分页查询书包信息");
         String name = bagPage.getName();
+        Integer floor = bagPage.getFloor();
         Page<Bag> page = lambdaQuery().like(name != null && !name.equals("undefined"), Bag::getName, name)
+                .eq(floor != null, Bag::getFloor, floor)
+                .orderByDesc(Bag::getCreateTime)
+                .orderByDesc(Bag::getId)
                 .page(new Page<>(
                         bagPage.getPageNo(),
                         bagPage.getPageSize()
@@ -105,6 +109,7 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
             bagVo bagVo = new bagVo();
             bagVo.setId(r.getId());
             bagVo.setName(r.getName());
+            bagVo.setFloor(r.getFloor());
             bagVo.setImageUrl(r.getImageUrl());
             //获取这个书包的所有工序书包关联表
             List<ProcessBag> processBags1 = processMap.get(r.getId());
@@ -139,6 +144,7 @@ public class BagServiceImpl extends ServiceImpl<BagMapper, Bag> implements IBagS
         Bag bag = getById(bagId);
         vo.setId(bag.getId());
         vo.setName(bag.getName());
+        vo.setFloor(bag.getFloor());
         vo.setImageUrl(bag.getImageUrl());
         List<processDto> processList = new ArrayList<>();
         List<ProcessBag> list = processBagService.lambdaQuery()

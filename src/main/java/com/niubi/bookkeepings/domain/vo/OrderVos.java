@@ -31,6 +31,7 @@ public class OrderVos {
      * 书包名称
      */
     private Integer bagId;
+    private Integer floor;
     private String bagName;
     private String imageUrl;
 }

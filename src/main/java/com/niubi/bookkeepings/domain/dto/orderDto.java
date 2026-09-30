@@ -18,5 +18,6 @@ public class orderDto {
     private Integer bagId;
     private String name;
     private LocalDate time;
+    private Integer floor;
     private List<OrderDetail> orderDetailList;
 }

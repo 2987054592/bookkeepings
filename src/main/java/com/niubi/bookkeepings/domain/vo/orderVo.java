@@ -16,6 +16,7 @@ public class orderVo {
     private String bagName;
     private String imageUrl;
     private String name;
+    private Integer floor;
     private YearMonth time;
     private List<OrderDetailVo> orderDetailVoList;
 }

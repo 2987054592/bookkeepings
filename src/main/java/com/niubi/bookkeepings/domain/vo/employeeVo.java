@@ -12,5 +12,6 @@ import java.util.List;
 public class employeeVo {
     private String name;
     private Integer id;
+    private Integer floor;
     private List<employeeMonthSalary> Salary;
 }

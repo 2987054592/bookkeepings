@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -34,6 +35,16 @@ public class Employee implements Serializable {
      * 员工名称
      */
     private String name;
+
+    /**
+     * 楼层
+     */
+    private Integer floor;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
 
 
 }

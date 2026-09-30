@@ -15,5 +15,6 @@ import java.util.List;
 public class bagDto {
     private Integer id;
     private String name;
+    private Integer floor;
     private List<processDto> processList;
 }

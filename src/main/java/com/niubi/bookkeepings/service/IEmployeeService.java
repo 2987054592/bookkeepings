@@ -4,6 +4,7 @@ import com.niubi.bookkeepings.domain.dto.employeePageDto;
 import com.niubi.bookkeepings.domain.po.Employee;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.niubi.bookkeepings.domain.vo.employeeMonthSalary;
+import com.niubi.bookkeepings.domain.vo.employeeMonthSalaryPageVo;
 import com.niubi.bookkeepings.domain.vo.employeeMonthSalaryVo;
 import com.niubi.bookkeepings.domain.vo.employeePageVo;
 import com.niubi.bookkeepings.domain.vo.employeeVo;
@@ -28,7 +29,10 @@ public interface IEmployeeService extends IService<Employee> {
 
     Map<Integer,List<employeeMonthSalary>> getSalaryById(List<Integer> employeeId);
 
-    List<employeeMonthSalaryVo> employeegetById(Integer employeeId);
+    /**
+     * 员工工资详情：按订单维度分页（子查询分页 + 主表回查）
+     */
+    employeeMonthSalaryPageVo employeegetById(Integer employeeId, Integer pageNo, Integer pageSize);
 
     void deleteEmployee(List<Integer> employeeId);
 

@@ -14,6 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 public class employeeMonthSalaryVo {
+    private Integer orderId;
     private YearMonth time;
     private String orderName;
     private String bagName;

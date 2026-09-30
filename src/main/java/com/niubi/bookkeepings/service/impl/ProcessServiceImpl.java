@@ -42,6 +42,8 @@ public class ProcessServiceImpl extends ServiceImpl<ProcessMapper, Process> impl
 
         Page<Process> page = lambdaQuery()
                 .like(name != null, Process::getName, name)
+                .orderByDesc(Process::getCreateTime)
+                .orderByDesc(Process::getId)
                 .page(new Page<>(pageNo, pageSize));
         vo.setProcessList( page.getRecords());
         vo.setTotalData(page.getTotal());

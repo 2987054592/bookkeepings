@@ -30,6 +30,7 @@ public class ProcessController {
     @PostMapping
     @ApiOperation("添加工序")
     public Result addProcess(@RequestBody Process process){
+        process.setCreateTime(java.time.LocalDateTime.now());
         processService.save(process);
         return Result.success();
     }

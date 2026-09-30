@@ -3,6 +3,7 @@ package com.niubi.bookkeepings.domain.po;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
 import lombok.Data;
@@ -44,6 +45,16 @@ public class Order implements Serializable {
      * 书包名称
      */
     private Integer bagId;
+
+    /**
+     * 楼层
+     */
+    private Integer floor;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
 
 
 }

@@ -5,7 +5,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.niubi.bookkeepings.domain.dto.employeePageDto;
 import com.niubi.bookkeepings.domain.po.Employee;
 import com.niubi.bookkeepings.domain.po.Result;
-import com.niubi.bookkeepings.domain.vo.employeeMonthSalaryVo;
+import com.niubi.bookkeepings.domain.vo.employeeMonthSalaryPageVo;
 import com.niubi.bookkeepings.domain.vo.employeePageVo;
 import com.niubi.bookkeepings.domain.vo.employeeVo;
 import com.niubi.bookkeepings.service.IEmployeeService;
@@ -34,6 +34,7 @@ public class EmployeeController {
     @PostMapping
     @ApiOperation("添加员工")
     public Result addEmployee(@RequestBody Employee employee){
+        employee.setCreateTime(java.time.LocalDateTime.now());
         employeeService.save(employee);
         return Result.success();
     }
@@ -48,10 +49,12 @@ public class EmployeeController {
         return Result.success(employeeService.list());
     }
     @GetMapping
-    @ApiOperation("根据id查询员工")
-    public Result<List<employeeMonthSalaryVo>> getById(@RequestParam Integer employeeId){
+    @ApiOperation("根据id分页查询员工工资详情(按订单分页)")
+    public Result<employeeMonthSalaryPageVo> getById(@RequestParam Integer employeeId,
+                                                     @RequestParam(defaultValue = "1") Integer pageNo,
+                                                     @RequestParam(defaultValue = "10") Integer pageSize){
 
-        return Result.success(employeeService.employeegetById(employeeId));
+        return Result.success(employeeService.employeegetById(employeeId, pageNo, pageSize));
     }
     @DeleteMapping
     @ApiOperation("删除员工")

@@ -25,7 +25,9 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -66,6 +68,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         LocalDate endTime = orderPage.getEndTime();
 
         orderPageVo vo=new orderPageVo();
+        Integer floor = orderPage.getFloor();
         Page<Order> page=new Page<>();
         List<Bag> bagList=null;
         List<Integer> bagIds=null;
@@ -78,22 +81,33 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         if(startTime!=null && endTime!=null){
            page = lambdaQuery().like(orderPage.getName()!=null,Order::getName, orderPage.getName())
                    .in(bagList!=null,Order::getBagId,bagIds)
+                   .eq(floor != null,Order::getFloor, floor)
                    .ge(Order::getTime, startTime)
                    .le(Order::getTime, endTime)
+                   .orderByDesc(Order::getCreateTime)
+                   .orderByDesc(Order::getId)
                    .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
        }
        else{
            page = lambdaQuery().like(orderPage.getName()!=null && !Objects.equals(orderPage.getName(), "undefined"),Order::getName, orderPage.getName())
                    .in(bagList!=null,Order::getBagId,bagIds)
+                   .eq(floor != null,Order::getFloor, floor)
+                   .orderByDesc(Order::getCreateTime)
+                   .orderByDesc(Order::getId)
                    .page(new Page<>(orderPage.getPageNo(), orderPage.getPageSize()));
        }
         List<Order> records = page.getRecords();
        List<OrderVos> recordvos=new ArrayList<>();
+        //批量取本页订单的书包，替代循环内 getBagById（N+1 优化）
+        List<Integer> pageBagIds = records.stream().map(Order::getBagId).distinct().collect(Collectors.toList());
+        Map<Integer, Bag> bagMap = pageBagIds.isEmpty() ? new HashMap<>()
+                : bagService.listByIds(pageBagIds).stream().collect(Collectors.toMap(Bag::getId, b -> b));
         for (Order record : records) {
             OrderVos orderVos = BeanUtil.copyProperties(record, OrderVos.class);
             orderVos.setTimes(YearMonth.of(record.getTime().getYear(), record.getTime().getMonth()));
-            orderVos.setBagName(bagService.getBagById(record.getBagId()).getName());
-            orderVos.setImageUrl(bagService.getBagById(record.getBagId()).getImageUrl());
+            Bag bag = bagMap.get(record.getBagId());
+            orderVos.setBagName(bag != null ? bag.getName() : "");
+            orderVos.setImageUrl(bag != null ? bag.getImageUrl() : null);
             recordvos.add(orderVos);
         }
         vo.setOrderList(recordvos);
@@ -111,6 +125,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             throw new DeleteExcetion("订单不存在");
         }
         vo.setName(order.getName());
+        vo.setFloor(order.getFloor());
         LocalDate time = order.getTime();
         int year = time.getYear();
         Month month = time.getMonth();
@@ -156,6 +171,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 .set(order.getName()!=null,Order::getName, order.getName())
                 .set(order.getTime()!=null,Order::getTime, order.getTime())
                 .set(order.getBagId()!=null,Order::getBagId, order.getBagId())
+                .set(order.getFloor()!=null,Order::getFloor, order.getFloor())
                 .update();
         orderDetailService.lambdaUpdate()
                 .eq(OrderDetail::getOderId, orderId)

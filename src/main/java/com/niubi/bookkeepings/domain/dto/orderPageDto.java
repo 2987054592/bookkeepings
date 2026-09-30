@@ -17,5 +17,6 @@ public class orderPageDto extends PageDto {
     private Integer bagName;
     private LocalDate endTime;
     private LocalDate startTime;
+    private Integer floor;
 
 }

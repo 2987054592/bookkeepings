@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 @Data
 public class employeePageDto extends PageDto {
     private String name;
+    private Integer floor;
 }
