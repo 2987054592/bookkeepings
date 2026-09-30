@@ -30,9 +30,9 @@ public interface IEmployeeService extends IService<Employee> {
     Map<Integer,List<employeeMonthSalary>> getSalaryById(List<Integer> employeeId);
 
     /**
-     * 员工工资详情：一次最多返回 50 个订单（按创建时间倒序），由前端本地分页
+     * 员工工资详情：按订单维度分页（子查询分页 + 主表回查），每页默认 50 单
      */
-    employeeMonthSalaryPageVo employeegetById(Integer employeeId);
+    employeeMonthSalaryPageVo employeegetById(Integer employeeId, Integer pageNo, Integer pageSize);
 
     void deleteEmployee(List<Integer> employeeId);
 

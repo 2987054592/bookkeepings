@@ -26,6 +26,11 @@ public class employeeMonthSalaryPageVo {
     private Long totalData;
 
     /**
+     * 总页数（每页 50 单）
+     */
+    private Long totalPage;
+
+    /**
      * 该员工工资总额（全量，一次聚合查询）
      */
     private BigDecimal totalSalary;

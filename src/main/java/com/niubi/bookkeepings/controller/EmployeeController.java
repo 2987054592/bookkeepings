@@ -49,10 +49,12 @@ public class EmployeeController {
         return Result.success(employeeService.list());
     }
     @GetMapping
-    @ApiOperation("根据id查询员工工资详情(一次最多返回50个订单，前端本地分页)")
-    public Result<employeeMonthSalaryPageVo> getById(@RequestParam Integer employeeId){
+    @ApiOperation("根据id分页查询员工工资详情(按订单分页，每页50单)")
+    public Result<employeeMonthSalaryPageVo> getById(@RequestParam Integer employeeId,
+                                                     @RequestParam(defaultValue = "1") Integer pageNo,
+                                                     @RequestParam(defaultValue = "50") Integer pageSize){
 
-        return Result.success(employeeService.employeegetById(employeeId));
+        return Result.success(employeeService.employeegetById(employeeId, pageNo, pageSize));
     }
     @DeleteMapping
     @ApiOperation("删除员工")
