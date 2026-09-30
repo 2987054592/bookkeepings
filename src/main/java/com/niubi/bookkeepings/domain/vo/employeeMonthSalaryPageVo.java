@@ -26,12 +26,12 @@ public class employeeMonthSalaryPageVo {
     private Long totalData;
 
     /**
-     * 总页数
-     */
-    private Long totalPage;
-
-    /**
-     * 该员工工资总额（全量，不随分页变化）
+     * 该员工工资总额（全量，一次聚合查询）
      */
     private BigDecimal totalSalary;
+
+    /**
+     * 按月聚合的工资（全量，不随分页变化），key 按 time（yyyy-MM）
+     */
+    private List<employeeMonthSalary> monthlySalaryList;
 }

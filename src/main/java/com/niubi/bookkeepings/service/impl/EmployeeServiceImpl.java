@@ -104,24 +104,30 @@ public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> i
         return vo;
     }
 
-    //查询这个员工薪水的详情（子查询分页 + 主表回查）
+    //详情一次最多返回的订单数
+    private static final int DETAIL_ORDER_LIMIT = 50;
+
+    //查询这个员工薪水的详情（一次查最多50个订单，前端本地分页；子查询 + 主表回查）
     @Override
-    public employeeMonthSalaryPageVo employeegetById(Integer employeeId, Integer pageNo, Integer pageSize) {
+    public employeeMonthSalaryPageVo employeegetById(Integer employeeId) {
         //先确定结果vo
         employeeMonthSalaryPageVo pageVo = new employeeMonthSalaryPageVo();
         List<employeeMonthSalaryVo> employeeMonthSalaryVo = new ArrayList<>();
         pageVo.setOrderList(employeeMonthSalaryVo);
-        //总数与工资总额（全量，一次聚合查询）
+        //总数与工资总额、按月聚合（全量，一次聚合查询）
         Long total = orderDetailMapper.countDistinctOrdersByEmployee(employeeId);
         pageVo.setTotalData(total == null ? 0 : total);
-        pageVo.setTotalPage((total + pageSize - 1) / pageSize);
         pageVo.setTotalSalary(orderDetailMapper.sumSalaryByEmployee(employeeId));
+        List<employeeMonthSalary> monthlyList = new ArrayList<>();
+        for (SalaryAggregateDto agg : orderDetailMapper.selectSalaryGroupByMonth(Collections.singletonList(employeeId))) {
+            monthlyList.add(new employeeMonthSalary(YearMonth.parse(agg.getMonth()), agg.getSalary()));
+        }
+        pageVo.setMonthlySalaryList(monthlyList);
         if (total == null || total == 0) {
             return pageVo;
         }
-        //第一步：子查询分页，只取当前页所需的订单id（按订单创建时间倒序）
-        int offset = (pageNo - 1) * pageSize;
-        List<Integer> orderIds = orderDetailMapper.selectOrderIdsByEmployeePaged(employeeId, offset, pageSize);
+        //第一步：子查询取最近 50 个订单id（按订单创建时间倒序）
+        List<Integer> orderIds = orderDetailMapper.selectOrderIdsByEmployeePaged(employeeId, 0, DETAIL_ORDER_LIMIT);
         if (orderIds.isEmpty()) {
             return pageVo;
         }
